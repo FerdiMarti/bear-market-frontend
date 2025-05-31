@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Define the paths to the contract artifacts
-const CONTRACT_PATHS = ['OptionToken.sol/OptionToken.json'];
+const CONTRACT_PATHS = ['OptionToken.sol/OptionToken.json', 'OptionTokenManager.sol/OptionTokenManager.json'];
 
 // Base path to the artifacts directory
 const ARTIFACTS_BASE_PATH = join(__dirname, '../../bear-market-contracts/artifacts/contracts');

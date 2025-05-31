@@ -11,7 +11,7 @@ export const OptionTokenABI = [
             },
             {
                 internalType: 'bytes32',
-                name: '_pythAssetId',
+                name: '_paymentTokenPythAssetId',
                 type: 'bytes32',
             },
             {
@@ -585,6 +585,19 @@ export const OptionTokenABI = [
     },
     {
         inputs: [],
+        name: 'paymentTokenPythAssetId',
+        outputs: [
+            {
+                internalType: 'bytes32',
+                name: '',
+                type: 'bytes32',
+            },
+        ],
+        stateMutability: 'view',
+        type: 'function',
+    },
+    {
+        inputs: [],
         name: 'premium',
         outputs: [
             {
@@ -630,19 +643,6 @@ export const OptionTokenABI = [
                 internalType: 'address',
                 name: '',
                 type: 'address',
-            },
-        ],
-        stateMutability: 'view',
-        type: 'function',
-    },
-    {
-        inputs: [],
-        name: 'pythAssetId',
-        outputs: [
-            {
-                internalType: 'bytes32',
-                name: '',
-                type: 'bytes32',
             },
         ],
         stateMutability: 'view',
@@ -770,6 +770,304 @@ export const OptionTokenABI = [
                 type: 'bool',
             },
         ],
+        stateMutability: 'nonpayable',
+        type: 'function',
+    },
+    {
+        inputs: [
+            {
+                internalType: 'address',
+                name: 'newOwner',
+                type: 'address',
+            },
+        ],
+        name: 'transferOwnership',
+        outputs: [],
+        stateMutability: 'nonpayable',
+        type: 'function',
+    },
+] as const;
+
+export const OptionTokenManagerABI = [
+    {
+        inputs: [
+            {
+                internalType: 'address',
+                name: '_pythAddress',
+                type: 'address',
+            },
+        ],
+        stateMutability: 'nonpayable',
+        type: 'constructor',
+    },
+    {
+        inputs: [
+            {
+                internalType: 'address',
+                name: 'owner',
+                type: 'address',
+            },
+        ],
+        name: 'OwnableInvalidOwner',
+        type: 'error',
+    },
+    {
+        inputs: [
+            {
+                internalType: 'address',
+                name: 'account',
+                type: 'address',
+            },
+        ],
+        name: 'OwnableUnauthorizedAccount',
+        type: 'error',
+    },
+    {
+        anonymous: false,
+        inputs: [
+            {
+                indexed: true,
+                internalType: 'address',
+                name: 'optionToken',
+                type: 'address',
+            },
+            {
+                indexed: false,
+                internalType: 'enum OptionType',
+                name: 'optionType',
+                type: 'uint8',
+            },
+            {
+                indexed: false,
+                internalType: 'uint256',
+                name: 'strikePrice',
+                type: 'uint256',
+            },
+            {
+                indexed: false,
+                internalType: 'uint256',
+                name: 'expiration',
+                type: 'uint256',
+            },
+            {
+                indexed: false,
+                internalType: 'uint256',
+                name: 'executionWindowSize',
+                type: 'uint256',
+            },
+            {
+                indexed: false,
+                internalType: 'uint256',
+                name: 'premium',
+                type: 'uint256',
+            },
+            {
+                indexed: false,
+                internalType: 'uint256',
+                name: 'amount',
+                type: 'uint256',
+            },
+            {
+                indexed: false,
+                internalType: 'address',
+                name: 'paymentToken',
+                type: 'address',
+            },
+            {
+                indexed: false,
+                internalType: 'uint256',
+                name: 'collateral',
+                type: 'uint256',
+            },
+        ],
+        name: 'OptionTokenDeployed',
+        type: 'event',
+    },
+    {
+        anonymous: false,
+        inputs: [
+            {
+                indexed: true,
+                internalType: 'address',
+                name: 'previousOwner',
+                type: 'address',
+            },
+            {
+                indexed: true,
+                internalType: 'address',
+                name: 'newOwner',
+                type: 'address',
+            },
+        ],
+        name: 'OwnershipTransferred',
+        type: 'event',
+    },
+    {
+        inputs: [],
+        name: 'MIN_EXECUTION_WINDOW_SIZE',
+        outputs: [
+            {
+                internalType: 'uint32',
+                name: '',
+                type: 'uint32',
+            },
+        ],
+        stateMutability: 'view',
+        type: 'function',
+    },
+    {
+        inputs: [
+            {
+                internalType: 'enum OptionType',
+                name: 'optionType',
+                type: 'uint8',
+            },
+            {
+                internalType: 'bytes32',
+                name: 'paymentTokenPythAssetId',
+                type: 'bytes32',
+            },
+            {
+                internalType: 'uint256',
+                name: 'strikePrice',
+                type: 'uint256',
+            },
+            {
+                internalType: 'uint256',
+                name: 'expiration',
+                type: 'uint256',
+            },
+            {
+                internalType: 'uint256',
+                name: 'executionWindowSize',
+                type: 'uint256',
+            },
+            {
+                internalType: 'uint256',
+                name: 'premium',
+                type: 'uint256',
+            },
+            {
+                internalType: 'uint256',
+                name: 'amount',
+                type: 'uint256',
+            },
+            {
+                internalType: 'address',
+                name: 'paymentToken',
+                type: 'address',
+            },
+            {
+                internalType: 'uint256',
+                name: 'collateral',
+                type: 'uint256',
+            },
+        ],
+        name: 'deployOptionToken',
+        outputs: [
+            {
+                internalType: 'address',
+                name: '',
+                type: 'address',
+            },
+        ],
+        stateMutability: 'nonpayable',
+        type: 'function',
+    },
+    {
+        inputs: [
+            {
+                internalType: 'uint256',
+                name: '',
+                type: 'uint256',
+            },
+        ],
+        name: 'deployedOptions',
+        outputs: [
+            {
+                internalType: 'address',
+                name: '',
+                type: 'address',
+            },
+        ],
+        stateMutability: 'view',
+        type: 'function',
+    },
+    {
+        inputs: [],
+        name: 'getDeployedOptions',
+        outputs: [
+            {
+                internalType: 'address[]',
+                name: '',
+                type: 'address[]',
+            },
+        ],
+        stateMutability: 'view',
+        type: 'function',
+    },
+    {
+        inputs: [],
+        name: 'getDeployedOptionsCount',
+        outputs: [
+            {
+                internalType: 'uint256',
+                name: '',
+                type: 'uint256',
+            },
+        ],
+        stateMutability: 'view',
+        type: 'function',
+    },
+    {
+        inputs: [
+            {
+                internalType: 'address',
+                name: '',
+                type: 'address',
+            },
+        ],
+        name: 'isOptionToken',
+        outputs: [
+            {
+                internalType: 'bool',
+                name: '',
+                type: 'bool',
+            },
+        ],
+        stateMutability: 'view',
+        type: 'function',
+    },
+    {
+        inputs: [],
+        name: 'owner',
+        outputs: [
+            {
+                internalType: 'address',
+                name: '',
+                type: 'address',
+            },
+        ],
+        stateMutability: 'view',
+        type: 'function',
+    },
+    {
+        inputs: [],
+        name: 'pythAddress',
+        outputs: [
+            {
+                internalType: 'address',
+                name: '',
+                type: 'address',
+            },
+        ],
+        stateMutability: 'view',
+        type: 'function',
+    },
+    {
+        inputs: [],
+        name: 'renounceOwnership',
+        outputs: [],
         stateMutability: 'nonpayable',
         type: 'function',
     },
