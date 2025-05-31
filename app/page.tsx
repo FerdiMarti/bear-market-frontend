@@ -2,11 +2,17 @@
 
 import { Button } from '@/components/ui/button';
 import { MoneyMakingDialog } from '@/components/MoneyMakingDialog';
+import { BuyOptionDialog } from '@/components/BuyOptionDialog';
 import Link from 'next/link';
 import { dummyOptions } from '@/data/dummyOptions';
 import { formatUnits } from 'viem';
+import { useState } from 'react';
+import { OptionToken } from '@/types/option';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 export default function Page() {
+    const [selectedOption, setSelectedOption] = useState<OptionToken | null>(null);
+
     const formatPrice = (value: bigint, decimals: number = 8) => {
         return `$${Number(formatUnits(value, decimals)).toLocaleString()}`;
     };
@@ -34,7 +40,7 @@ export default function Page() {
                     </div>
 
                     <h1 className="text-2xl font-medium">Explore Available Options</h1>
-
+                    <ConnectButton showBalance={false} />
                     <MoneyMakingDialog />
                 </div>
 
@@ -62,7 +68,10 @@ export default function Page() {
                             <div className="text-[var(--trading-text-muted)]">{formatPrice(option.totalSupply)}</div>
                             <div className="text-[var(--trading-text-muted)]">{Number(option.collateral) / Number(option.premium)}x</div>
                             <div className="flex justify-end">
-                                <Button className="bg-[var(--trading-green)] text-black hover:bg-[var(--trading-green)]/90 rounded-lg px-6 font-medium">
+                                <Button
+                                    className="bg-[var(--trading-green)] text-black hover:bg-[var(--trading-green)]/90 rounded-lg px-6 font-medium"
+                                    onClick={() => setSelectedOption(option)}
+                                >
                                     Buy
                                 </Button>
                             </div>
@@ -70,6 +79,8 @@ export default function Page() {
                     ))}
                 </div>
             </div>
+
+            {selectedOption && <BuyOptionDialog option={selectedOption} isOpen={!!selectedOption} onClose={() => setSelectedOption(null)} />}
         </div>
     );
 }
