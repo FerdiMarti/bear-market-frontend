@@ -109,32 +109,34 @@ export function BuyOptionDialog({ option, isOpen, onClose }: BuyOptionDialogProp
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <p className="text-sm font-medium text-black">Amount</p>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setAmount(Math.max(1, amount - 1))}
-                                disabled={amount <= 1}
-                                className="bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)] hover:bg-[var(--trading-bg)]/80"
-                            >
-                                -
-                            </Button>
-                            <Input
-                                type="number"
-                                value={amount}
-                                onChange={e => setAmount(Math.max(1, parseInt(e.target.value) || 1))}
-                                className="text-center bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)]"
-                            />
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setAmount(amount + 1)}
-                                className="bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)] hover:bg-[var(--trading-bg)]/80"
-                            >
-                                +
-                            </Button>
+                    <div className="flex justify-center w-full">
+                        <div className="space-y-2 max-w-1/2">
+                            <p className="text-sm font-medium text-black">Amount</p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setAmount(Math.max(1, amount - 1))}
+                                    disabled={amount <= 1}
+                                    className="bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)] hover:bg-[var(--trading-bg)]/80"
+                                >
+                                    -
+                                </Button>
+                                <Input
+                                    type="number"
+                                    value={amount}
+                                    onChange={e => setAmount(Math.max(1, parseInt(e.target.value) || 1))}
+                                    className="text-center bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)]"
+                                />
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setAmount(amount + 1)}
+                                    className="bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)] hover:bg-[var(--trading-bg)]/80"
+                                >
+                                    +
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
