@@ -3,37 +3,13 @@
 import { Button } from '@/components/ui/button';
 import { MoneyMakingDialog } from '@/components/MoneyMakingDialog';
 import Link from 'next/link';
+import { dummyOptions } from '@/data/dummyOptions';
+import { formatUnits } from 'viem';
 
 export default function Page() {
-    const optionsData = [
-        {
-            underlying: '$SPX',
-            strike: '$620',
-            marketPrice: '$590',
-            type: 'Call',
-            price: '$10',
-            liquidity: '$1,000,000',
-            collateralization: '2x',
-        },
-        {
-            underlying: '$BTC',
-            strike: '$110,000',
-            marketPrice: '$103,700',
-            type: 'Call',
-            price: '$10',
-            liquidity: '$1,000,000',
-            collateralization: '1x',
-        },
-        {
-            underlying: '$ETH',
-            strike: '$3,000',
-            marketPrice: '$2,700',
-            type: 'Call',
-            price: '$10',
-            liquidity: '$1,000,000',
-            collateralization: '1x',
-        },
-    ];
+    const formatPrice = (value: bigint, decimals: number = 8) => {
+        return `$${Number(formatUnits(value, decimals)).toLocaleString()}`;
+    };
 
     return (
         <div className="min-h-screen bg-[var(--trading-bg)] text-[var(--trading-text)] p-6">
@@ -76,15 +52,15 @@ export default function Page() {
 
                 {/* Table Rows */}
                 <div className="space-y-4">
-                    {optionsData.map((option, index) => (
+                    {dummyOptions.map((option, index) => (
                         <div key={index} className="bg-[var(--trading-row-bg)] rounded-2xl p-6 grid grid-cols-8 gap-4 items-center">
-                            <div className="font-medium text-lg">{option.underlying}</div>
-                            <div className="text-[var(--trading-text-muted)]">{option.strike}</div>
-                            <div className="text-[var(--trading-text-muted)]">{option.marketPrice}</div>
-                            <div className="text-[var(--trading-text-muted)]">{option.type}</div>
-                            <div className="text-[var(--trading-text-muted)]">{option.price}</div>
-                            <div className="text-[var(--trading-text-muted)]">{option.liquidity}</div>
-                            <div className="text-[var(--trading-text-muted)]">{option.collateralization}</div>
+                            <div className="font-medium text-lg">${option.symbol}</div>
+                            <div className="text-[var(--trading-text-muted)]">{formatPrice(option.strikePrice)}</div>
+                            <div className="text-[var(--trading-text-muted)]">{formatPrice(option.startPrice)}</div>
+                            <div className="text-[var(--trading-text-muted)]">{option.optionType}</div>
+                            <div className="text-[var(--trading-text-muted)]">{formatPrice(option.premium)}</div>
+                            <div className="text-[var(--trading-text-muted)]">{formatPrice(option.totalSupply)}</div>
+                            <div className="text-[var(--trading-text-muted)]">{Number(option.collateral) / Number(option.premium)}x</div>
                             <div className="flex justify-end">
                                 <Button className="bg-[var(--trading-green)] text-black hover:bg-[var(--trading-green)]/90 rounded-lg px-6 font-medium">
                                     Buy
