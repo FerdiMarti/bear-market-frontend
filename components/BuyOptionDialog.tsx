@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OptionToken } from '@/types/option';
 import { formatUnits } from 'ethers';
-import { useAccount } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { OptionTokenABI } from '@/lib/abis';
-import { ethers } from 'ethers';
 import { erc20Abi } from 'viem';
 
 interface BuyOptionDialogProps {
@@ -19,8 +18,6 @@ interface BuyOptionDialogProps {
 
 export function BuyOptionDialog({ option, isOpen, onClose }: BuyOptionDialogProps) {
     const [amount, setAmount] = useState(1);
-    const [isApproving, setIsApproving] = useState(false);
-    const [isBuying, setIsBuying] = useState(false);
     const { address } = useAccount();
 
     const formatPrice = (value: bigint, decimals: number = 8) => {
@@ -29,128 +26,128 @@ export function BuyOptionDialog({ option, isOpen, onClose }: BuyOptionDialogProp
 
     const totalCost = option.premium * BigInt(amount);
 
-    const getProvider = () => {
-        if (typeof window !== 'undefined' && window.ethereum) {
-            return new ethers.BrowserProvider(window.ethereum);
+    // Read allowance
+    const { data: allowance = BigInt(0) } = useReadContract({
+        address: option.paymentToken as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [address as `0x${string}`, option.address as `0x${string}`],
+        query: {
+            enabled: !!address && !!option.paymentToken && !!option.address,
+        },
+    });
+
+    // Approve transaction
+    const { writeContract: approve, data: approveData } = useWriteContract();
+
+    // Wait for approve transaction
+    const { isLoading: isApproving } = useWaitForTransactionReceipt({
+        hash: approveData,
+    });
+
+    // Buy option transaction
+    const { writeContract: buyOption, data: buyData } = useWriteContract();
+
+    // Wait for buy transaction
+    const { isLoading: isBuying } = useWaitForTransactionReceipt({
+        hash: buyData,
+    });
+
+    const handleApprove = () => {
+        if (!address) return;
+        approve({
+            abi: erc20Abi,
+            address: option.paymentToken as `0x${string}`,
+            functionName: 'approve',
+            args: [option.address as `0x${string}`, totalCost],
+        });
+    };
+
+    const handleBuy = () => {
+        if (!address) return;
+        const params = {
+            abi: OptionTokenABI,
+            address: option.address as `0x${string}`,
+            functionName: 'purchaseOption',
+            args: [BigInt(amount)],
+        } as const;
+
+        if (totalCost > 0n) {
+            Object.assign(params, { value: totalCost });
         }
-        return null;
+
+        buyOption(params);
     };
-
-    const getSigner = async () => {
-        const provider = getProvider();
-        if (!provider) return null;
-        return await provider.getSigner();
-    };
-
-    const checkAllowance = async () => {
-        const signer = await getSigner();
-        if (!signer || !address) return BigInt(0);
-
-        const erc20Contract = new ethers.Contract(option.paymentToken as string, erc20Abi, signer);
-
-        const allowance = await erc20Contract.allowance(address, option.address);
-        return allowance;
-    };
-
-    const handleApprove = async () => {
-        try {
-            setIsApproving(true);
-            const signer = await getSigner();
-            if (!signer) throw new Error('No signer found');
-
-            const erc20Contract = new ethers.Contract(option.paymentToken as string, erc20Abi, signer);
-
-            const tx = await erc20Contract.approve(option.address, totalCost);
-            await tx.wait();
-        } catch (error) {
-            console.error('Approval error:', error);
-        } finally {
-            setIsApproving(false);
-        }
-    };
-
-    const handleBuy = async () => {
-        try {
-            setIsBuying(true);
-            const signer = await getSigner();
-            if (!signer) throw new Error('No signer found');
-
-            const optionContract = new ethers.Contract(option.address as string, OptionTokenABI, signer);
-
-            const tx = await optionContract.purchaseOption(amount, { value: totalCost });
-            await tx.wait();
-        } catch (error) {
-            console.error('Purchase error:', error);
-        } finally {
-            setIsBuying(false);
-        }
-    };
-
-    const [allowance, setAllowance] = useState<bigint>(BigInt(0));
-
-    // Check allowance when component mounts or when relevant values change
-    useEffect(() => {
-        const checkAllowanceAndUpdate = async () => {
-            const currentAllowance = await checkAllowance();
-            setAllowance(currentAllowance);
-        };
-        checkAllowanceAndUpdate();
-    }, [address, option.paymentToken, option.address, totalCost]);
 
     const needsApproval = allowance < totalCost;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>
+            <DialogContent className="max-w-xl sm:max-w-2xl bg-[var(--trading-text-muted)] border-none p-8">
+                <DialogHeader className="mb-6">
+                    <DialogTitle className="text-center text-2xl font-medium text-black">
                         Buy {option.symbol} {option.optionType}
                     </DialogTitle>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-6">
+                    <div className="grid grid-cols-2 gap-8">
                         <div className="space-y-1">
-                            <p className="text-sm text-muted-foreground">Strike Price</p>
-                            <p className="font-medium">{formatPrice(option.strikePrice)}</p>
+                            <p className="text-sm font-medium text-black">Strike Price</p>
+                            <p className="text-lg font-bold text-[var(--trading-bg)]">{formatPrice(option.strikePrice)}</p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-sm text-muted-foreground">Current Price</p>
-                            <p className="font-medium">{formatPrice(option.startPrice)}</p>
+                            <p className="text-sm font-medium text-black">Current Price</p>
+                            <p className="text-lg font-bold text-[var(--trading-bg)]">{formatPrice(option.startPrice)}</p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-sm text-muted-foreground">Premium</p>
-                            <p className="font-medium">{formatPrice(option.premium)}</p>
+                            <p className="text-sm font-medium text-black">Premium</p>
+                            <p className="text-lg font-bold text-[var(--trading-bg)]">{formatPrice(option.premium)}</p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-sm text-muted-foreground">Collateralization</p>
-                            <p className="font-medium">{Number(option.collateral) / Number(option.premium)}x</p>
+                            <p className="text-sm font-medium text-black">Collateralization</p>
+                            <p className="text-lg font-bold text-[var(--trading-bg)]">{Number(option.collateral) / Number(option.premium)}x</p>
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">Amount</p>
+                        <p className="text-sm font-medium text-black">Amount</p>
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" size="icon" onClick={() => setAmount(Math.max(1, amount - 1))} disabled={amount <= 1}>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setAmount(Math.max(1, amount - 1))}
+                                disabled={amount <= 1}
+                                className="bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)] hover:bg-[var(--trading-bg)]/80"
+                            >
                                 -
                             </Button>
                             <Input
                                 type="number"
                                 value={amount}
                                 onChange={e => setAmount(Math.max(1, parseInt(e.target.value) || 1))}
-                                className="text-center"
+                                className="text-center bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)]"
                             />
-                            <Button variant="outline" size="icon" onClick={() => setAmount(amount + 1)}>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setAmount(amount + 1)}
+                                className="bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)] hover:bg-[var(--trading-bg)]/80"
+                            >
                                 +
                             </Button>
                         </div>
                     </div>
 
                     <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Total Cost</p>
-                        <p className="font-medium">{formatPrice(totalCost)}</p>
+                        <p className="text-sm font-medium text-black">Total Cost</p>
+                        <p className="text-lg font-bold text-[var(--trading-bg)]">{formatPrice(totalCost)}</p>
                     </div>
 
-                    <Button className="w-full" onClick={needsApproval ? handleApprove : handleBuy} disabled={isApproving || isBuying}>
+                    <Button
+                        className="w-full bg-[var(--trading-yellow)] text-black hover:bg-[var(--trading-yellow)]/90 rounded-lg px-12 py-3 text-lg font-medium"
+                        onClick={needsApproval ? handleApprove : handleBuy}
+                        disabled={isApproving || isBuying}
+                    >
                         {isApproving ? 'Approving...' : isBuying ? 'Buying...' : needsApproval ? 'Approve' : 'Buy'}
                     </Button>
                 </div>
