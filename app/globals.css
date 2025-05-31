@@ -76,6 +76,14 @@
   --sidebar-accent-foreground: oklch(0.21 0.034 264.665);
   --sidebar-border: oklch(0.928 0.006 264.531);
   --sidebar-ring: oklch(0.707 0.022 261.325);
+
+  /* Custom theme colors */
+  --trading-bg: #261d1d;
+  --trading-row-bg: #7f6363;
+  --trading-yellow: #e5dc65;
+  --trading-green: #22c55e;
+  --trading-text: #ffffff;
+  --trading-text-muted: #d1d5db;
 }
 
 .dark {
