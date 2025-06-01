@@ -43,4 +43,25 @@ export const dummyOptions: OptionToken[] = [
         name: 'Tesla Call Option',
         decimals: 6,
     },
+    {
+        address: '0x3Efa40d6bbE733b9eE8BeECEfCD09e453919CCC7',
+        optionType: OptionType.CALL,
+        strikePrice: BigInt(3600000), // $110,000
+        expiration: BigInt(Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60),
+        executionWindowSize: BigInt(24 * 60 * 60),
+        premium: BigInt(2000000), // $10
+        collateral: BigInt(7000000), // $1,000
+        startPrice: BigInt(3500000), // $103,700
+        priceFixed: true,
+        totalSold: BigInt(1000000000000), // $1,000,000
+        totalSupply: BigInt(1000000000000), // $1,000,000
+        status: OptionStatus.ACTIVE,
+        isFullyExecuted: false,
+        pythAssetId: 'AMC',
+        pythAddress: '0x2345678901234567890123456789012345678901',
+        paymentToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        symbol: 'AMC',
+        name: 'AMC Call Option',
+        decimals: 6,
+    },
 ];

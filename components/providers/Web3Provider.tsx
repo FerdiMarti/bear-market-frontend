@@ -3,12 +3,12 @@
 import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
-import { base } from 'wagmi/chains';
 import { metaMaskWallet, phantomWallet } from '@rainbow-me/rainbowkit/wallets';
 import '@rainbow-me/rainbowkit/styles.css';
+import { USED_CONTRACTS } from '@/lib/constants';
 
 const config = getDefaultConfig({
-    chains: [base],
+    chains: [USED_CONTRACTS.chain],
     ssr: true,
     appName: 'Yield Robin',
     projectId: 'NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID',
