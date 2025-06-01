@@ -32,6 +32,7 @@ export default function PositionsPage() {
             staked: '$1000',
             currency: '$NECT',
             yield: '$55.67',
+            endingIn: '12h',
         },
         {
             id: 2,
@@ -40,6 +41,7 @@ export default function PositionsPage() {
             staked: '$500',
             currency: '$NECT',
             yield: '$12.34',
+            endingIn: '2d 4h',
         },
     ];
 
@@ -78,7 +80,7 @@ export default function PositionsPage() {
                                         </div>
                                     </div>
                                     <Button className="bg-[var(--trading-yellow)] text-black hover:bg-[var(--trading-yellow)]/90 rounded-lg px-6">
-                                        Claim
+                                        Sell
                                     </Button>
                                 </div>
                             ))}
@@ -102,8 +104,11 @@ export default function PositionsPage() {
                                             <div>Yield: {position.yield}</div>
                                         </div>
                                     </div>
-                                    <Button className="bg-[var(--trading-yellow)] text-black hover:bg-[var(--trading-yellow)]/90 rounded-lg px-6">
-                                        Claim
+                                    <Button
+                                        disabled
+                                        className="bg-[var(--trading-yellow)] text-black hover:bg-[var(--trading-yellow)]/90 rounded-lg px-6"
+                                    >
+                                        Ending in {position.endingIn}
                                     </Button>
                                 </div>
                             ))}

@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OptionToken } from '@/types/option';
 import { formatUnits } from 'ethers';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract } from 'wagmi';
 import { OptionTokenABI } from '@/lib/abis';
 import { erc20Abi } from 'viem';
+import { toast } from 'sonner';
 
 interface BuyOptionDialogProps {
     option: OptionToken;
@@ -19,67 +20,65 @@ interface BuyOptionDialogProps {
 export function BuyOptionDialog({ option, isOpen, onClose }: BuyOptionDialogProps) {
     const [amount, setAmount] = useState(1);
     const { address } = useAccount();
+    const [isLoading, setIsLoading] = useState(false);
 
-    const formatPrice = (value: bigint, decimals: number = 8) => {
+    const formatPrice = (value: bigint, decimals: number = 6) => {
         return `$${Number(formatUnits(value, decimals)).toLocaleString()}`;
     };
 
     const totalCost = option.premium * BigInt(amount);
 
-    // Read allowance
-    const { data: allowance = BigInt(0) } = useReadContract({
-        address: option.paymentToken as `0x${string}`,
-        abi: erc20Abi,
-        functionName: 'allowance',
-        args: [address as `0x${string}`, option.address as `0x${string}`],
-        query: {
-            enabled: !!address && !!option.paymentToken && !!option.address,
-        },
-    });
+    // // Read allowance
+    // const { data: allowance = BigInt(0) } = useReadContract({
+    //     address: option.paymentToken as `0x${string}`,
+    //     abi: erc20Abi,
+    //     functionName: 'allowance',
+    //     args: [address as `0x${string}`, option.address as `0x${string}`],
+    //     query: {
+    //         enabled: !!address && !!option.paymentToken && !!option.address,
+    //     },
+    // });
 
     // Approve transaction
-    const { writeContract: approve, data: approveData } = useWriteContract();
-
-    // Wait for approve transaction
-    const { isLoading: isApproving } = useWaitForTransactionReceipt({
-        hash: approveData,
-    });
+    const { writeContractAsync: approve } = useWriteContract();
 
     // Buy option transaction
-    const { writeContract: buyOption, data: buyData } = useWriteContract();
+    const { writeContractAsync: buyOption } = useWriteContract();
 
-    // Wait for buy transaction
-    const { isLoading: isBuying } = useWaitForTransactionReceipt({
-        hash: buyData,
-    });
-
-    const handleApprove = () => {
+    const handleBuy = async () => {
         if (!address) return;
-        approve({
-            abi: erc20Abi,
-            address: option.paymentToken as `0x${string}`,
-            functionName: 'approve',
-            args: [option.address as `0x${string}`, totalCost],
-        });
-    };
 
-    const handleBuy = () => {
-        if (!address) return;
-        const params = {
-            abi: OptionTokenABI,
-            address: option.address as `0x${string}`,
-            functionName: 'purchaseOption',
-            args: [BigInt(amount)],
-        } as const;
+        setIsLoading(true);
 
-        if (totalCost > 0n) {
-            Object.assign(params, { value: totalCost });
+        try {
+            await approve({
+                abi: erc20Abi,
+                address: option.paymentToken as `0x${string}`,
+                functionName: 'approve',
+                args: [option.address as `0x${string}`, totalCost],
+            });
+
+            const params = {
+                abi: OptionTokenABI,
+                address: option.address as `0x${string}`,
+                functionName: 'purchaseOption',
+                args: [BigInt(amount)],
+            } as const;
+
+            if (totalCost > 0n) {
+                Object.assign(params, { value: totalCost });
+            }
+
+            await buyOption(params);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsLoading(false);
+            toast.success('Option purchased successfully');
         }
-
-        buyOption(params);
     };
 
-    const needsApproval = allowance < totalCost;
+    // const needsApproval = allowance < totalCost;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -147,10 +146,10 @@ export function BuyOptionDialog({ option, isOpen, onClose }: BuyOptionDialogProp
 
                     <Button
                         className="w-full bg-[var(--trading-yellow)] text-black hover:bg-[var(--trading-yellow)]/90 rounded-lg px-12 py-3 text-lg font-medium"
-                        onClick={needsApproval ? handleApprove : handleBuy}
-                        disabled={isApproving || isBuying}
+                        onClick={handleBuy}
+                        disabled={isLoading}
                     >
-                        {isApproving ? 'Approving...' : isBuying ? 'Buying...' : needsApproval ? 'Approve' : 'Buy'}
+                        {isLoading ? 'Processing...' : 'Buy'}
                     </Button>
                 </div>
             </DialogContent>

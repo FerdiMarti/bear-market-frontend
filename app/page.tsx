@@ -7,13 +7,13 @@ import Link from 'next/link';
 import { dummyOptions } from '@/data/dummyOptions';
 import { formatUnits } from 'viem';
 import { useState } from 'react';
-import { OptionToken } from '@/types/option';
+import { OptionToken, OptionTypeLabels } from '@/types/option';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 export default function Page() {
     const [selectedOption, setSelectedOption] = useState<OptionToken | null>(null);
 
-    const formatPrice = (value: bigint, decimals: number = 8) => {
+    const formatPrice = (value: bigint, decimals: number = 6) => {
         return `$${Number(formatUnits(value, decimals)).toLocaleString()}`;
     };
 
@@ -63,10 +63,10 @@ export default function Page() {
                             <div className="font-medium text-lg">${option.symbol}</div>
                             <div className="text-[var(--trading-text-muted)]">{formatPrice(option.strikePrice)}</div>
                             <div className="text-[var(--trading-text-muted)]">{formatPrice(option.startPrice)}</div>
-                            <div className="text-[var(--trading-text-muted)]">{option.optionType}</div>
+                            <div className="text-[var(--trading-text-muted)]">{OptionTypeLabels[option.optionType]}</div>
                             <div className="text-[var(--trading-text-muted)]">{formatPrice(option.premium)}</div>
                             <div className="text-[var(--trading-text-muted)]">{formatPrice(option.totalSupply)}</div>
-                            <div className="text-[var(--trading-text-muted)]">{Number(option.collateral) / Number(option.premium)}x</div>
+                            <div className="text-[var(--trading-text-muted)]">{Number(option.collateral) / Number(option.startPrice)}x</div>
                             <div className="flex justify-end">
                                 <Button
                                     className="bg-[var(--trading-green)] text-black hover:bg-[var(--trading-green)]/90 rounded-lg px-6 font-medium"

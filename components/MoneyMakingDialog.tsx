@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { useState, useEffect } from 'react';
 import { OptionType, OptionTypeLabels } from '@/types/option';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useWalletClient } from 'wagmi';
+import { useAccount, useWriteContract, useReadContract, useWalletClient } from 'wagmi';
 import { erc20Abi } from 'viem';
 import { OptionTokenManagerABI } from '@/lib/abis';
 import { toast } from 'sonner';
@@ -163,20 +163,10 @@ export function MoneyMakingDialog() {
     const OPTION_TOKEN_MANAGER_ADDRESS = process.env.NEXT_PUBLIC_MANAGER_ADDRESS as `0x${string}`; // Replace with actual address
 
     // Approval write
-    const { writeContractAsync: approve, data: approveData } = useWriteContract();
-
-    // Wait for approval transaction
-    const { isLoading: isApproving } = useWaitForTransactionReceipt({
-        hash: approveData,
-    });
+    const { writeContractAsync: approve } = useWriteContract();
 
     // Deploy option token write
-    const { writeContractAsync: deployOptionToken, data: deployData } = useWriteContract();
-
-    // Wait for deploy transaction
-    const { isLoading: isDeploying } = useWaitForTransactionReceipt({
-        hash: deployData,
-    });
+    const { writeContractAsync: deployOptionToken } = useWriteContract();
 
     // Calculate resulting collateral based on selected ratio and deposit amount
     const calculateCollateral = () => {
@@ -240,16 +230,6 @@ export function MoneyMakingDialog() {
                 args: [OPTION_TOKEN_MANAGER_ADDRESS, collateralWithDecimals],
             });
 
-            // Wait for approval
-            await new Promise(resolve => {
-                const checkApproval = setInterval(() => {
-                    if (!isApproving) {
-                        clearInterval(checkApproval);
-                        resolve(true);
-                    }
-                }, 1000);
-            });
-
             // Deploy the option token
             await deployOptionToken({
                 address: OPTION_TOKEN_MANAGER_ADDRESS as `0x${string}`,
@@ -268,16 +248,6 @@ export function MoneyMakingDialog() {
                 ],
             });
 
-            // Wait for deployment
-            await new Promise(resolve => {
-                const checkDeployment = setInterval(() => {
-                    if (!isDeploying) {
-                        clearInterval(checkDeployment);
-                        resolve(true);
-                    }
-                }, 1000);
-            });
-
             toast.success('Option token deployed successfully!');
         } catch (error) {
             console.error('Error minting option:', error);
@@ -290,7 +260,7 @@ export function MoneyMakingDialog() {
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <Button className="bg-[var(--trading-yellow)] text-black hover:bg-[var(--trading-yellow)]/90 rounded-full px-6">Make $$$$</Button>
+                <Button className="bg-[var(--trading-yellow)] text-black hover:bg-[var(--trading-yellow)]/90 rounded-full px-6">Create Option</Button>
             </DialogTrigger>
             <DialogContent className="max-w-xl sm:max-w-2xl bg-[var(--trading-text-muted)] border-none p-8">
                 <DialogHeader className="mb-6">
@@ -485,9 +455,9 @@ export function MoneyMakingDialog() {
                     <Button
                         className="bg-[var(--trading-yellow)] text-black hover:bg-[var(--trading-yellow)]/90 rounded-lg px-12 py-3 text-lg font-medium"
                         onClick={handleMint}
-                        disabled={isLoading || isApproving || isDeploying}
+                        disabled={isLoading}
                     >
-                        {isLoading || isApproving || isDeploying ? 'Processing...' : 'Mint'}
+                        {isLoading ? 'Processing...' : 'Mint'}
                     </Button>
                 </div>
             </DialogContent>
