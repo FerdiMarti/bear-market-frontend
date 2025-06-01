@@ -11,6 +11,8 @@
         "generate-abis": "NODE_OPTIONS='--loader ts-node/esm' ts-node --project scripts/tsconfig.json scripts/createABIs.ts"
     },
     "dependencies": {
+        "@pythnetwork/hermes-client": "^2.0.0",
+        "@pythnetwork/pyth-sdk-solidity": "^4.1.0",
         "@radix-ui/react-dialog": "^1.1.14",
         "@radix-ui/react-select": "^2.2.5",
         "@radix-ui/react-slot": "^1.2.3",

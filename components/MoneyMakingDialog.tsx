@@ -6,10 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { useState, useEffect } from 'react';
 import { OptionType, OptionTypeLabels } from '@/types/option';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useWalletClient } from 'wagmi';
 import { erc20Abi } from 'viem';
 import { OptionTokenManagerABI } from '@/lib/abis';
 import { toast } from 'sonner';
+import { getLatestPriceUpdates, publishPiceUpdate } from '@/lib/pythNetwork';
+import { PYTH_ASSET_IDS, USED_CONTRACTS } from '@/lib/constants';
 
 const EXECUTION_WINDOW_SIZES = [
     {
@@ -39,13 +41,13 @@ const COLLATERAL_TOKENS = [
         label: '$USDC',
         value: 'USDC',
         decimals: 6,
-        address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', //TODO handle different networks
+        address: USED_CONTRACTS.USDC,
     },
     {
         label: '$NECT',
         value: 'NECT',
         decimals: 6,
-        address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', //TODO handle different networks
+        address: USED_CONTRACTS.NECT,
     },
 ];
 
@@ -53,12 +55,12 @@ const UNDERLYING_ASSETS = [
     {
         label: '$AAPL',
         value: 'AAPL',
-        pythAssetId: '0x49f6b65cb1de6b10eaf75e7c03ca029c306d0357e91b5311b175084a5ad55688',
+        pythAssetId: PYTH_ASSET_IDS.AAPL,
     },
     {
         label: '$TSLA',
         value: 'TSLA',
-        pythAssetId: '0x16dad506d7db8da01c87581c87ca897a012a153557d4d578c3b9c9e1bc0632f1',
+        pythAssetId: PYTH_ASSET_IDS.TSLA,
     },
 ];
 
@@ -114,17 +116,28 @@ const assetPrices: Record<string, number> = {
 
 export function MoneyMakingDialog() {
     const { address } = useAccount();
+    const { data: walletClient } = useWalletClient();
     const [isLoading, setIsLoading] = useState(false);
     const [selectedRatio, setSelectedRatio] = useState(1);
-    const [premium, setPremium] = useState(0);
+    const [premium, setPremium] = useState(10);
     const [underlyingAsset, setUnderlyingAsset] = useState(UNDERLYING_ASSETS[0].value);
     const [executionWindowSize, setExecutionWindowSize] = useState(24 * 60 * 60);
-    const [strikePrice, setStrikePrice] = useState(0);
+    const [type, setType] = useState(OptionType.CALL);
+
+    const getStrikePrices = (asset: string) => {
+        const price = assetPrices[asset];
+        if (type === OptionType.CALL) {
+            return [Math.round(price * 1.05), Math.round(price * 1.1), Math.round(price * 1.15)];
+        } else {
+            return [Math.round(price * 0.95), Math.round(price * 0.9), Math.round(price * 0.85)];
+        }
+    };
+    const [strikePrice, setStrikePrice] = useState(getStrikePrices(underlyingAsset)[0]);
+
     const [duration, setDuration] = useState(DURATIONS[0].value);
     const [amount, setAmount] = useState(1);
     const [collateralToken, setCollateralToken] = useState(COLLATERAL_TOKENS[0].value);
     const [collateralTokenBalance, setCollateralTokenBalance] = useState(0);
-    const [type, setType] = useState(OptionType.CALL);
 
     // Read collateral token balance
     const { data: balance } = useReadContract({
@@ -178,12 +191,16 @@ export function MoneyMakingDialog() {
         return Math.round(premium);
     };
 
-    const getStrikePrices = (asset: string) => {
-        const price = assetPrices[asset];
-        if (type === OptionType.CALL) {
-            return [Math.round(price * 1.05), Math.round(price * 1.1), Math.round(price * 1.15)];
-        } else {
-            return [Math.round(price * 0.95), Math.round(price * 0.9), Math.round(price * 0.85)];
+    const handlePythUpdate = async (assetId: `0x${string}`) => {
+        const update = await getLatestPriceUpdates(assetId);
+        if (!walletClient) {
+            console.error('Wallet not connected');
+            return;
+        }
+        try {
+            await publishPiceUpdate(update, walletClient);
+        } catch (error) {
+            console.error('Error publishing update:', error);
         }
     };
 
@@ -211,6 +228,9 @@ export function MoneyMakingDialog() {
             const decimals = collateralTokenInfo?.decimals || 6; // Default to 6 if not available
             const collateralWithDecimals = BigInt(collateralAmount) * 10n ** BigInt(decimals);
             const premiumWithDecimals = BigInt(premium) * 10n ** BigInt(decimals);
+            const strikePriceWithDecimals = BigInt(strikePrice) * 10n ** BigInt(decimals);
+
+            await handlePythUpdate(underlyingAssetInfo?.pythAssetId as `0x${string}`);
 
             // First approve the collateral amount
             await approve({
@@ -238,7 +258,7 @@ export function MoneyMakingDialog() {
                 args: [
                     type,
                     underlyingAssetInfo?.pythAssetId as `0x${string}`,
-                    BigInt(strikePrice),
+                    strikePriceWithDecimals,
                     BigInt(Math.floor(Date.now() / 1000) + duration),
                     BigInt(executionWindowSize),
                     premiumWithDecimals,
@@ -381,10 +401,7 @@ export function MoneyMakingDialog() {
                         {/* Strike Price */}
                         <div>
                             <label className="block text-sm font-medium text-black mb-1">Strike Price</label>
-                            <Select
-                                defaultValue={getStrikePrices(underlyingAsset)[0].toString()}
-                                onValueChange={value => setStrikePrice(Number(value))}
-                            >
+                            <Select defaultValue={strikePrice.toString()} onValueChange={value => setStrikePrice(Number(value))}>
                                 <SelectTrigger className="w-full bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)] rounded-lg h-12">
                                     <SelectValue />
                                 </SelectTrigger>
