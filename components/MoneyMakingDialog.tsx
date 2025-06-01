@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { OptionType, OptionTypeLabels } from '@/types/option';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { erc20Abi } from 'viem';
 import { OptionTokenManagerABI } from '@/lib/abis';
 import { toast } from 'sonner';
@@ -125,6 +125,26 @@ export function MoneyMakingDialog() {
     const [collateralToken, setCollateralToken] = useState(COLLATERAL_TOKENS[0].value);
     const [collateralTokenBalance, setCollateralTokenBalance] = useState(0);
     const [type, setType] = useState(OptionType.CALL);
+
+    // Read collateral token balance
+    const { data: balance } = useReadContract({
+        address: COLLATERAL_TOKENS.find(token => token.value === collateralToken)?.address as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [address as `0x${string}`],
+        query: {
+            enabled: !!address && !!collateralToken,
+        },
+    });
+
+    // Update collateral token balance when balance changes
+    useEffect(() => {
+        if (balance) {
+            const tokenInfo = COLLATERAL_TOKENS.find(token => token.value === collateralToken);
+            const decimals = tokenInfo?.decimals || 6;
+            setCollateralTokenBalance(Number(balance) / Math.pow(10, decimals));
+        }
+    }, [balance, collateralToken]);
 
     // Contract addresses - replace with your actual addresses
     const OPTION_TOKEN_MANAGER_ADDRESS = process.env.NEXT_PUBLIC_MANAGER_ADDRESS as `0x${string}`; // Replace with actual address
