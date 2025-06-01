@@ -5,7 +5,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
-import { OptionType } from '@/types/option';
+import { OptionType, OptionTypeLabels } from '@/types/option';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { erc20Abi } from 'viem';
+import { OptionTokenManagerABI } from '@/lib/abis';
+import { toast } from 'sonner';
 
 const EXECUTION_WINDOW_SIZES = [
     {
@@ -35,22 +39,26 @@ const COLLATERAL_TOKENS = [
         label: '$USDC',
         value: 'USDC',
         decimals: 6,
+        address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', //TODO handle different networks
     },
     {
         label: '$NECT',
         value: 'NECT',
         decimals: 6,
+        address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', //TODO handle different networks
     },
 ];
 
 const UNDERLYING_ASSETS = [
     {
-        label: '$SPX',
-        value: 'SPX',
+        label: '$AAPL',
+        value: 'AAPL',
+        pythAssetId: '0x49f6b65cb1de6b10eaf75e7c03ca029c306d0357e91b5311b175084a5ad55688',
     },
     {
         label: '$TSLA',
         value: 'TSLA',
+        pythAssetId: '0x16dad506d7db8da01c87581c87ca897a012a153557d4d578c3b9c9e1bc0632f1',
     },
 ];
 
@@ -73,31 +81,74 @@ const DURATIONS = [
     },
 ];
 
-const AMOUNTS = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
+const AMOUNTS = [1, 10, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
+
+const RATIO_OPTIONS = [
+    {
+        label: '1x',
+        value: 1,
+    },
+    {
+        label: '2x',
+        value: 2,
+    },
+    {
+        label: '3x',
+        value: 3,
+    },
+    {
+        label: '4x',
+        value: 4,
+    },
+    {
+        label: '5x',
+        value: 5,
+    },
+];
 
 // Asset price mapping
 const assetPrices: Record<string, number> = {
-    SPX: 590,
+    AAPL: 590,
     TSLA: 100,
 };
 
 export function MoneyMakingDialog() {
-    const [selectedRatio, setSelectedRatio] = useState('1x');
+    const { address } = useAccount();
+    const [isLoading, setIsLoading] = useState(false);
+    const [selectedRatio, setSelectedRatio] = useState(1);
     const [premium, setPremium] = useState(0);
-    const [underlyingAsset, setUnderlyingAsset] = useState('SPX');
+    const [underlyingAsset, setUnderlyingAsset] = useState(UNDERLYING_ASSETS[0].value);
     const [executionWindowSize, setExecutionWindowSize] = useState(24 * 60 * 60);
     const [strikePrice, setStrikePrice] = useState(0);
     const [duration, setDuration] = useState(DURATIONS[0].value);
-    const [amount, setAmount] = useState(100);
+    const [amount, setAmount] = useState(1);
     const [collateralToken, setCollateralToken] = useState(COLLATERAL_TOKENS[0].value);
     const [collateralTokenBalance, setCollateralTokenBalance] = useState(0);
     const [type, setType] = useState(OptionType.CALL);
 
+    // Contract addresses - replace with your actual addresses
+    const OPTION_TOKEN_MANAGER_ADDRESS = process.env.NEXT_PUBLIC_MANAGER_ADDRESS as `0x${string}`; // Replace with actual address
+
+    // Approval write
+    const { writeContractAsync: approve, data: approveData } = useWriteContract();
+
+    // Wait for approval transaction
+    const { isLoading: isApproving } = useWaitForTransactionReceipt({
+        hash: approveData,
+    });
+
+    // Deploy option token write
+    const { writeContractAsync: deployOptionToken, data: deployData } = useWriteContract();
+
+    // Wait for deploy transaction
+    const { isLoading: isDeploying } = useWaitForTransactionReceipt({
+        hash: deployData,
+    });
+
     // Calculate resulting collateral based on selected ratio and deposit amount
     const calculateCollateral = () => {
-        const ratio = Number.parseFloat(selectedRatio);
         const assetPrice = assetPrices[underlyingAsset];
-        return (assetPrice * ratio).toLocaleString();
+        return (assetPrice * selectedRatio * amount).toLocaleString();
     };
 
     const calculateRecommendedPremium = () => {
@@ -113,6 +164,86 @@ export function MoneyMakingDialog() {
             return [Math.round(price * 1.05), Math.round(price * 1.1), Math.round(price * 1.15)];
         } else {
             return [Math.round(price * 0.95), Math.round(price * 0.9), Math.round(price * 0.85)];
+        }
+    };
+
+    const handleMint = async () => {
+        if (!OPTION_TOKEN_MANAGER_ADDRESS) {
+            toast.error('Option token manager address not found');
+            return;
+        }
+
+        if (!address) {
+            toast.error('Please connect your wallet first');
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+
+            // Calculate collateral amount
+            const assetPrice = assetPrices[underlyingAsset];
+            const collateralAmount = assetPrice * selectedRatio * amount;
+            const collateralTokenInfo = COLLATERAL_TOKENS.find(token => token.value === collateralToken);
+            const underlyingAssetInfo = UNDERLYING_ASSETS.find(asset => asset.value === underlyingAsset);
+
+            // Convert to proper decimals
+            const decimals = collateralTokenInfo?.decimals || 6; // Default to 6 if not available
+            const collateralWithDecimals = BigInt(collateralAmount) * 10n ** BigInt(decimals);
+            const premiumWithDecimals = BigInt(premium) * 10n ** BigInt(decimals);
+
+            // First approve the collateral amount
+            await approve({
+                address: collateralTokenInfo?.address as `0x${string}`,
+                abi: erc20Abi,
+                functionName: 'approve',
+                args: [OPTION_TOKEN_MANAGER_ADDRESS, collateralWithDecimals],
+            });
+
+            // Wait for approval
+            await new Promise(resolve => {
+                const checkApproval = setInterval(() => {
+                    if (!isApproving) {
+                        clearInterval(checkApproval);
+                        resolve(true);
+                    }
+                }, 1000);
+            });
+
+            // Deploy the option token
+            await deployOptionToken({
+                address: OPTION_TOKEN_MANAGER_ADDRESS as `0x${string}`,
+                abi: OptionTokenManagerABI,
+                functionName: 'deployOptionToken',
+                args: [
+                    type,
+                    underlyingAssetInfo?.pythAssetId as `0x${string}`,
+                    BigInt(strikePrice),
+                    BigInt(Math.floor(Date.now() / 1000) + duration),
+                    BigInt(executionWindowSize),
+                    premiumWithDecimals,
+                    BigInt(amount),
+                    collateralTokenInfo?.address as `0x${string}`,
+                    collateralWithDecimals,
+                ],
+            });
+
+            // Wait for deployment
+            await new Promise(resolve => {
+                const checkDeployment = setInterval(() => {
+                    if (!isDeploying) {
+                        clearInterval(checkDeployment);
+                        resolve(true);
+                    }
+                }, 1000);
+            });
+
+            toast.success('Option token deployed successfully!');
+        } catch (error) {
+            console.error('Error minting option:', error);
+            toast.error('Failed to mint option token. Please try again.');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -190,18 +321,18 @@ export function MoneyMakingDialog() {
                         <div>
                             <label className="block text-sm font-medium text-black mb-1">Collateralization ratio</label>
                             <div className="flex gap-2">
-                                {['1x', '2x', '3x', '4x', '5x'].map(ratio => (
+                                {RATIO_OPTIONS.map(ratio => (
                                     <Button
-                                        key={ratio}
-                                        variant={selectedRatio === ratio ? 'default' : 'outline'}
-                                        onClick={() => setSelectedRatio(ratio)}
+                                        key={ratio.value}
+                                        variant={selectedRatio === ratio.value ? 'default' : 'outline'}
+                                        onClick={() => setSelectedRatio(ratio.value)}
                                         className={
-                                            selectedRatio === ratio
-                                                ? 'bg-[var(--trading-yellow)] text-black hover:bg-[var(--trading-yellow)]/90 rounded-lg px-4 py-2'
-                                                : 'bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)] hover:bg-[var(--trading-bg)]/80 rounded-lg px-4 py-2'
+                                            selectedRatio === ratio.value
+                                                ? 'bg-[var(--trading-yellow)] text-black hover:bg-[var(--trading-yellow)]/90 rounded-lg px-4 py-2 border-none'
+                                                : 'bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)] hover:bg-[var(--trading-bg)]/80 rounded-lg px-4 py-2 border-none'
                                         }
                                     >
-                                        {ratio}
+                                        {ratio.label}
                                     </Button>
                                 ))}
                             </div>
@@ -213,7 +344,7 @@ export function MoneyMakingDialog() {
                         {/* Underlying */}
                         <div>
                             <label className="block text-sm font-medium text-black mb-1">Underlying</label>
-                            <Select defaultValue="SPX" onValueChange={value => setUnderlyingAsset(value)}>
+                            <Select defaultValue={underlyingAsset} onValueChange={value => setUnderlyingAsset(value)}>
                                 <SelectTrigger className="w-full bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)] rounded-lg h-12">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -267,14 +398,14 @@ export function MoneyMakingDialog() {
                         {/* Type */}
                         <div>
                             <label className="block text-sm font-medium text-black mb-1">Type</label>
-                            <Select defaultValue={OptionType.CALL} onValueChange={value => setType(value as OptionType)}>
+                            <Select defaultValue={OptionType.CALL.toString()} onValueChange={value => setType(Number.parseInt(value))}>
                                 <SelectTrigger className="w-full bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)] rounded-lg h-12">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[var(--trading-bg)] text-[var(--trading-text)] border-[var(--trading-bg)]">
                                     {Object.values(OptionType).map(type => (
-                                        <SelectItem key={type} value={type}>
-                                            {type}
+                                        <SelectItem key={type} value={type.toString()}>
+                                            {OptionTypeLabels[type as OptionType]}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -314,8 +445,12 @@ export function MoneyMakingDialog() {
 
                 {/* Mint Button */}
                 <div className="flex justify-center mt-8">
-                    <Button className="bg-[var(--trading-yellow)] text-black hover:bg-[var(--trading-yellow)]/90 rounded-lg px-12 py-3 text-lg font-medium">
-                        Mint
+                    <Button
+                        className="bg-[var(--trading-yellow)] text-black hover:bg-[var(--trading-yellow)]/90 rounded-lg px-12 py-3 text-lg font-medium"
+                        onClick={handleMint}
+                        disabled={isLoading || isApproving || isDeploying}
+                    >
+                        {isLoading || isApproving || isDeploying ? 'Processing...' : 'Mint'}
                     </Button>
                 </div>
             </DialogContent>

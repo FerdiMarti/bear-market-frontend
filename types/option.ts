@@ -1,7 +1,12 @@
 export enum OptionType {
-    CALL = 'CALL',
-    PUT = 'PUT',
+    CALL = 0,
+    PUT = 1,
 }
+
+export const OptionTypeLabels = {
+    [OptionType.CALL]: 'CALL',
+    [OptionType.PUT]: 'PUT',
+};
 
 export enum OptionStatus {
     ACTIVE = 'ACTIVE', // Before expiration
